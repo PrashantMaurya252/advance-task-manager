@@ -108,3 +108,28 @@ export const updateTask = async(req,res)=>{
         res.status(500).json({success:false,message:'Server Error in updateTask',error:error.message})
     }
 }
+
+export const deleteTask = async(req,res)=>{
+    try {
+        const task = await Task.findOne({_id:req.params.taskId}).populate("createdBy","_id name email role").populate("assignedTo","_id name email role")
+        if(!task){
+            return res.status(404).json({success:false,message:"Task not found"})
+        }
+
+        const userId = req.user.id
+        const role = req.user.role
+
+        const isCreatedByYou = task.createdBy._id.toString() === userId
+        const isAssignedToYou = task.assignedTo._id.toString() === userId
+
+        const isAuthorize = (role === 'Admin') || (role === 'Manager' && isCreatedByYou)
+
+        if(!isAuthorize) return res.status(403).json({success:false,message:"You are not authorize for this task"})
+
+        await Task.deleteOne({_id:req.params.taskId})
+        return res.status(200).json({success:true,message:'task deleted successfully'})
+
+    } catch (error) {
+        res.status(500).json({success:false,message:'Server Error in deleteTask',error:error.message})
+    }
+}
