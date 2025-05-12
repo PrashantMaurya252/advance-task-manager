@@ -133,3 +133,32 @@ export const deleteTask = async(req,res)=>{
         res.status(500).json({success:false,message:'Server Error in deleteTask',error:error.message})
     }
 }
+
+export const searchTasks =async(req,res)=>{
+    try {
+        const {title = '',description=''} = req.query
+        const userId = req.user.id
+        const role = req.user.role
+
+        const searchQuery = {$or:[
+            {title:{$regex:title,$options:"i"}},
+            {description:{$regex:description,$options:"i"}}
+        ]}
+        if(role === 'Regular'){
+            searchQuery.assignedTo=userId
+        }else if(role === 'Manager'){
+            searchQuery.$or.push({createdBy:userId},{assignedTo:userId})
+        }
+
+        const task = await Task.find(searchQuery).populate("assignedTo","_id name email role").populate("createdBy","_id name email role")
+
+        if(!task){
+            return res.status(404).json({success:false,message:"no task found"})
+        }
+
+        res.status(200).json({success:true,message:"Task found",task})
+
+    } catch (error) {
+        res.status(500).json({success:false,message:'Server Error in searchTask',error:error.message})
+    }
+}
