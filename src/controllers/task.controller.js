@@ -11,9 +11,6 @@ export const createTask =async(req,res)=>{
                 return res.status(403).json({success:false,message:"Forbidden: Insufficient Permissions"})
             }
         }
-        // const task = await Task.create({
-        //     title,description,priority,dueDate,assignedTo,recurring,createdBy:req.user.id
-        // })
 
         const task = new Task({
             title,description,priority,dueDate,assignedTo,recurring,createdBy:req.user.id
@@ -26,43 +23,46 @@ export const createTask =async(req,res)=>{
     }
 }
 
-export const getAllUserCreatedTasks=async(req,res)=>{
+export const getAllTasks = async(req,res)=>{
     try {
-        const userId = user.id
-        const filter = {createdBy:userId}
+        let filter = {}
+        const userId = req.user.id
+        const role = req.user.role
+        if(role === 'Regular' || role === "Admin"){
+            if(role === 'Regular'){
+                filter.assignedTo=userId
+            }else{
+                filter={}
+            }
 
-        if(req.query.status) filter.status = req.query.status
-        if(req.query.priority) filter.priority = req.query.priority
-        if(req.query.dueDate) filter.dueDate = req.query.dueDate
+            const tasks = await Task.find(filter).populate("assignedTo","name email role")
+            return res.status(200).json({success:true,tasks,message:'All tasks are here'})
+        }else{
+            //  const assignedTasks = await Task.find({assignedTo:userId}).populate("createdBy","name email role")
+            //  const createdTasks = await Task.find({createdBy:userId}).populate("assignedTo","name email role")
 
-        const tasks = await Task.find(filter).populate('assignedTo',"name email role")
-        res.status(200).json({success:true,message:"All Tasks Here",tasks})
+             const [assignedTasks,createdTasks] = await Promise.all([Task.find({assignedTo:userId}).populate("createdBy","name email role").populate("assignedTo","name email role"),Task.find({createdBy:userId}).populate("assignedTo","name email role").populate("createdBy","name email role")])
+
+             return res.status(200).json({success:true,message:"All tasks are here",tasks:{
+                assignedTasks,createdTasks
+             }})
+        }
+        
+        
     } catch (error) {
-        res.status(500).json({success:false,message:'Server Error in getAllUserCreatedTasks',error:error.message})
-    }
-}
-
-export const getAllUserAssignedTasks = async(req,res)=>{
-    try {
-        const userId = req.id
-        const filter = {assignedTo:userId}
-        if(req.query.status) filter.status = req.query.status
-        if(req.query.priority) filter.priority = req.query.priority
-        if(req.query.dueDate) filter.dueDate = req.query.dueDate
-
-        const tasks = await Task.find(filter).populate("createdBy","name email role")
-        res.status(200).json({success:true,message:"Here are all tasks assigned to user",tasks})
-
-    } catch (error) {
-        res.status(500).json({success:false,message:'Server Error in getAllUserAssignedTasks',error:error.message})
+        res.status(500).json({success:false,message:'Server Error getAllTasks',error:error.message})
     }
 }
 
 export const getTaskById = async(req,res)=>{
     try {
-        const task = await Task.findOne({createdBy:req.id,_id:req.params.taskId}).populate("assignedTo","name email role ")
+        const task = await Task.findOne({_id:req.params.taskId}).populate("assignedTo","_id name email role ").populate("createdBy","_id name email role")
         if(!task){
             return res.status(404).json({success:false,message:"Task not found for provided id"})
+        }
+
+        if(task.createdBy !== req.user.id){
+            return res.status(401).json({success:false,message:"Task not created by you"})
         }
         res.status(200).json({success:true,task,message:"Task found"})
     } catch (error) {
