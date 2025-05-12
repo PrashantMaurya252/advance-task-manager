@@ -7,7 +7,7 @@ const taskSchema= new mongoose.Schema({
     dueDate:{type:Date,required:true},
     priority:{type:String,enum:["Low","Medium","High"],default:"Medium"},
     status:{type:String,enum:["Pending","Completed","In Progress","Overdue"],default:"Pending"},
-    recuring:{
+    recurring:{
         isRecurring:{type:Boolean,default:false},
         frequency:{type:String,enum:["Daily","Weekly","Monthly"],required:false},
         nextOccurance:{type:Date,required:false}

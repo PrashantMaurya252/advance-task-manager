@@ -61,11 +61,50 @@ export const getTaskById = async(req,res)=>{
             return res.status(404).json({success:false,message:"Task not found for provided id"})
         }
 
-        if(task.createdBy !== req.user.id){
-            return res.status(401).json({success:false,message:"Task not created by you"})
+        const userId = req.user.id
+        const role = req.user.role
+        const isCreatedByYou =  task.createdBy._id.toString() === userId
+        const isAssignedToYou = task.assignedTo && task.assignedTo._id.toString() === userId
+
+        const isAuthorize = (role === 'Admin') || ( role === 'Manager' && (isCreatedByYou || isAssignedToYou)) || (role === 'Regular' && isAssignedToYou)
+
+        if(!isAuthorize){
+            return res.status(401).json({success:false,message:"You are not authorize for this task"})
         }
-        res.status(200).json({success:true,task,message:"Task found"})
     } catch (error) {
         res.status(500).json({success:false,message:'Server Error in getTaskById',error:error.message})
+    }
+}
+
+export const updateTask = async(req,res)=>{
+    try {
+        const {title,description,priority,dueDate,assignedTo,recurring} = req.body
+        const task = await Task.findOne({_id:req.params.taskId}).populate("createdBy","_id name email role").populate("assignedTo","_id name email role")
+        if(!task){
+            return res.status(404).json({success:false,message:"Task not found"})
+        }
+
+        const userId = req.user.id
+        const role = req.user.role
+
+        const isCreatedByYou = task.createdBy._id.toString() === userId
+        const isAssignedToYou = task.assignedTo._id.toString() === userId
+
+        const isAuthorize = (role === 'Admin') || (role === 'Manager' && isCreatedByYou)
+
+        if(!isAuthorize) return res.status(401).json({success:false,message:"You are not authorize for this task"})
+
+        if(title) task.title = title
+        if(description) task.description = description
+        if(priority) task.priority = priority
+        if(dueDate) task.dueDate = dueDate
+        if(assignedTo) task.assignedTo = assignedTo
+        if(recurring) task.recurring = recurring
+
+        await task.save()
+        return res.status(201).json({success:true,message:'task updated successfully',task})
+
+    } catch (error) {
+        res.status(500).json({success:false,message:'Server Error in updateTask',error:error.message})
     }
 }
