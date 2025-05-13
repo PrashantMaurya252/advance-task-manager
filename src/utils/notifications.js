@@ -5,5 +5,8 @@ export const sendNotification = async (userId,message)=>{
     const notification = new Notification({user:userId,message})
     await notification.save()
 
-    io.to(userId.toString()).emit('new notification',message)
+    io.to(userId.toString()).emit('new notification',{
+        message,
+        createdAt:notification.createdAt
+    })
 }
