@@ -1,5 +1,7 @@
 import Task from '../models/task.model'
 import User from '../models/user.model'
+import { sendNotification } from '../utils/notifications'
+import Audit from '../models/audit.model'
 
 export const createTask =async(req,res)=>{
     try {
@@ -16,6 +18,11 @@ export const createTask =async(req,res)=>{
             title,description,priority,dueDate,assignedTo,recurring,createdBy:req.user.id
         })
         await task.save()
+
+        await Audit.create({
+            user:req.user.id
+        })
+        await sendNotification(assignedTo,`You have been assigned a new task ${title}`)
 
         res.status(201).json({success:true,message:"Task Created Successfully",task})
     } catch (error) {
